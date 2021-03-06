@@ -85,28 +85,27 @@ struct Snake
 
     void dir(int x, int y)
     {
-	if( speed.x > 0 && x < 0 ) return;
-	if( speed.y > 0 && y < 0 ) return;
+	if( (speed.x > 0 && x < 0) || (speed.x < 0 && x > 0) ) return;
+	if( (speed.y > 0 && y < 0) || (speed.y < 0 && y > 0) ) return;
 	speed.x = x;
 	speed.y = y;
     }
 
-    void update()
+    bool update()
     {
 	int headpos = tail.size()-1;
-
+	
 	// move head.
 	tail[headpos].x+=speed.x;
 	tail[headpos].y+=speed.y;
 
+	if( tail[headpos].x * scl > WIDTH ) tail[headpos].x -= WIDTH/scl; 
+	if( tail[headpos].y * scl > HEIGHT) tail[headpos].y -= HEIGHT/scl;
+	if( tail[headpos].x < 0) tail[headpos].x += WIDTH/scl;
+	if( tail[headpos].y < 0) tail[headpos].y += HEIGHT/scl;
+
 	// dead?
 	bool bDead = false;
-
-	if( (tail[headpos].x*scl) + scl >= WIDTH ) bDead = true;
-	if( (tail[headpos].y*scl) + scl >= HEIGHT ) bDead = true;
-	if( (tail[headpos].x < 0)) bDead = true;
-	if( (tail[headpos].y < 0)) bDead = true;
-
 	for( int i = 0; i < tail.size()-1; ++i)
 	{
 	    if( tail[i].x == tail[headpos].x && 
@@ -130,9 +129,8 @@ struct Snake
 	    // choose new food location.
 	    food.x = rand() % (WIDTH-1) / scl;
 	    food.y = rand() % (HEIGHT-1) / scl;
-
 	    score = 0;
-	    SDL_Delay(2000);
+	    SDL_Delay(3000);
 	}
 	else if( tail[headpos].x == food.x && tail[headpos].y == food.y ) // eat food?
 	{
@@ -146,11 +144,11 @@ struct Snake
 	    score++;
 	    highScore = MAX(score,highScore);
 	}
-
 	// move body.
 	for(int i = 0; i < tail.size()-1; ++i)
 	    tail[i] = tail[i+1];
 
+	return !bDead;
     }
 
     void draw(uint32_t* p, int w, int h)
@@ -173,7 +171,7 @@ int main()
 	    SDL_WINDOWPOS_CENTERED,
 	    SDL_WINDOWPOS_CENTERED,
 	    WIDTH, HEIGHT,
-	    0//SDL_WINDOW_FULLSCREEN
+	    SDL_WINDOW_FULLSCREEN
 	    );
     if(!screen) {
 	fprintf(stderr, "Could not create window\n");
@@ -212,8 +210,19 @@ int main()
 
 	uint32_t *p = pixels;
 	memset(p,0,WIDTH*HEIGHT*4);
-	gSnake.update();
+	for(int i = 0; i < WIDTH; ++i) p[i] = RGBA(255,255,255,255);
+	for(int i = 0; i < WIDTH; ++i) p[i+(WIDTH*(HEIGHT-1))] = RGBA(255,255,255,255);
+	for(int i = 0; i < HEIGHT; ++i) p[(WIDTH*i)] = RGBA(255,255,255,255);
+	for(int i = 0; i < HEIGHT; ++i) p[WIDTH-1+(WIDTH*i)] = RGBA(255,255,255,255);
+
+	bool bAlive = true;
+	bAlive &= gSnake.update();
 	gSnake.draw(p,WIDTH,HEIGHT);
+
+	if( !bAlive )
+	{
+	    ddraw(WIDTH/2 - (10*kFontSize)/2, HEIGHT/2, white, "Game Over!");
+	}
 
 	SDL_UpdateTexture(texture, NULL, pixels, WIDTH * sizeof(Uint32));
 	SDL_RenderClear(gRenderer);
